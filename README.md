@@ -4,7 +4,7 @@
 
 This is great because we don't have to upload code again all the time we want to change to AP Mode or change the password. Just go to the Setup Page, submit and it will be stored in the SPIFFS.
 
-It uses Arduino Libraries [arduinoWebSockets](https://github.com/Links2004/arduinoWebSockets) for WebSockets and [pubsubclient](https://github.com/knolleary/pubsubclient) for MQTT.
+It uses Arduino Libraries [arduinoWebSockets](https://github.com/Links2004/arduinoWebSockets) for WebSockets, [pubsubclient](https://github.com/knolleary/pubsubclient) for MQTT and [ArduinoJson](https://github.com/bblanchon/ArduinoJson) for JSON Parsing.
 
 You just have to:
 * Upload the Sketch to your ESP8266
