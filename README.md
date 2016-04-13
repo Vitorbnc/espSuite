@@ -12,3 +12,6 @@ You just have to:
 * Connect to your new AP (SSID is *things* by default) and go to 192.168.1.1 to see the Setup Page
 
 The ESP will now work as an awesome Serial device, always when you `Serial.print("something")`, *something* will be sent using the protocol you've chosen. When you send *something* to its IP address and port (don't forget the '\n' in the end), it will be printed to Arduino too.
+
+###The Setup Page
+![Setup Page](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/config_page.png)
