@@ -69,8 +69,8 @@ const int connectTimeout = 20000;
 
 bool configPage = false;
 
-
-String indexPath = "/index.html";
+// Choose between index_br, index_en for different langauge
+String indexPath = "/index_en.html";
 String savePath = "/save.html";
 String initPath = "/init.json";
 String apPath = "/ap.json";
