@@ -6,17 +6,17 @@ This is great because we don't have to upload code again all the time we want to
 
 It uses Arduino Libraries [arduinoWebSockets](https://github.com/Links2004/arduinoWebSockets) for WebSockets, [pubsubclient](https://github.com/knolleary/pubsubclient) for MQTT and [ArduinoJson](https://github.com/bblanchon/ArduinoJson) for JSON Parsing.
 
-You just have to:
+#####You just have to:
 * Upload the Sketch to your ESP8266
 * Upload Sketch Data using ESP8266 Sketch Data Upload Tool
 * Connect to your new AP (SSID is *things* by default) and go to 192.168.1.1 to see the Setup Page
 
 The ESP will now work as an awesome Serial device, always when you `Serial.print("something")`, *something* will be sent using the protocol you've chosen. When you send *something* to its IP address and port (don't forget the '\n' in the end), it will be printed to Arduino too.
 
-Things to make it cooler:
+#####Things to make it cooler:
 * Choose another language (currently, EN-US and PT-BR available) by editing the `indexPath` variable
 * Edit `/data/index_xx.html` with the name of your thing or robot. E.g.: **Wall-E Setup**
-* You can change **any** setting for first-start just by editing JSON inside the `data` folder
+* You can change or view **any** any initial setting in the JSON files inside the `data` folder
 
 ###The Setup Page
 ![Setup Page](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/config_page.png)
@@ -25,3 +25,7 @@ Things to make it cooler:
 ###The Wiring Diagram
 ######Just in case you forgot:
 ![ESP-01 Wiring](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/esp-01_wiring.png)
+
+####Notes
+* Disconnect *DTR* and *RTS* before opening Arduino Serial Monitor
+* If the ESP is resetting, try flashing Sketch Data and/or Sketch again
