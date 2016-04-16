@@ -566,7 +566,7 @@ void setupProtocol() {
                 }
                 else if (rawTCP) {
                     rawServer.begin();
-                    rawServer.setNoDelay(true);
+                   // rawServer.setNoDelay(true);
                         if(debug) {
                                 String tmp=""; tmp+=">dbg.rawServer("; tmp+=23; tmp+=")";
                                 uart.println(tmp);
