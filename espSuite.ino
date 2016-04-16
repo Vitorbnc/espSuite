@@ -19,7 +19,7 @@
 
  */
 
-
+const int max_rawServer_clients = 2;
 const int defaultBaud=230400;
 bool fileDump = false;
 bool debug = false;
@@ -44,8 +44,9 @@ char dataTrailer='\n';
 
 String serialData="";
 
-ESP8266WebServer server(80);
-//WiFiServer rawServer(80);
+ESP8266WebServer webServer(80);
+WiFiServer rawServer(23);
+WiFiClient rawServer_clients[max_rawServer_clients];
 WiFiClient rawClient;
 PubSubClient mqttClient;
 WebSocketsServer wsServer = WebSocketsServer(81);
@@ -70,7 +71,7 @@ const int connectTimeout = 20000;
 bool configPage = false;
 
 // Choose between index_br, index_en for different langauge
-String indexPath = "/index_en.html";
+String indexPath = "/index_br.html";
 String savePath = "/save.html";
 String initPath = "/init.json";
 String apPath = "/ap.json";
@@ -107,29 +108,29 @@ void setup() {
 
         if (configPage) {
 
-                server.onNotFound([]() {
-                        if (!handleFileRead(server.uri()))
-                                server.send(404, "text/plain", "FileNotFound");
+                webServer.onNotFound([]() {
+                        if (!handleFileRead(webServer.uri()))
+                                webServer.send(404, "text/plain", "FileNotFound");
                 });
 
-                server.on("/", handleRoot);
-                server.on("/init", HTTP_GET, handleInit);
-                server.on("/protocol", HTTP_GET, handleProtocol);
-                server.on("/ap", HTTP_POST, handleAP);
-                server.on("/sta", HTTP_POST, handleSta);
-                server.on("/names", HTTP_GET, handleNames);
-                server.on("/save", handleSave);
+                webServer.on("/", handleRoot);
+                webServer.on("/init", HTTP_GET, handleInit);
+                webServer.on("/protocol", HTTP_GET, handleProtocol);
+                webServer.on("/ap", HTTP_POST, handleAP);
+                webServer.on("/sta", HTTP_POST, handleSta);
+                webServer.on("/names", HTTP_GET, handleNames);
+                webServer.on("/save", handleSave);
 
 
 
-                server.begin();
+                webServer.begin();
                 Serial.println("HTTP server started");
         }
 }
 
 void loop() {
         if (configPage) {
-                server.handleClient();
+                webServer.handleClient();
         }
         if(mqtt) mqttBridge();
         else if (ws) wsBridge();
@@ -170,13 +171,13 @@ void parseIP(String rawTxt) {
 
 void handleProtocol() {
         if (debug) uart.println("protocol req");
-        if (server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
+        if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
         StaticJsonBuffer<200> jsonBuffer;
         JsonObject& json = jsonBuffer.createObject();
-        json["mode"] = server.arg("mode");
-        json["protocol"] = server.arg("protocol");
-        json["host"] = server.arg("host");
-        json["port"] = server.arg("port").toInt();
+        json["mode"] = webServer.arg("mode");
+        json["protocol"] = webServer.arg("protocol");
+        json["host"] = webServer.arg("host");
+        json["port"] = webServer.arg("port").toInt();
 
 
         File xfile = SPIFFS.open(protocolPath, "w");
@@ -194,12 +195,12 @@ void handleProtocol() {
 
 void handleInit() {
         if (debug) uart.println("init req");
-        if (server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
+        if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
         StaticJsonBuffer<200> jsonBuffer;
         JsonObject& json = jsonBuffer.createObject();
-        json["wifiMode"] = server.arg("wifiMode");
-        json["debug"] = server.arg("debug");
-        json["baud"] = server.arg("baud").toInt();
+        json["wifiMode"] = webServer.arg("wifiMode");
+        json["debug"] = webServer.arg("debug");
+        json["baud"] = webServer.arg("baud").toInt();
         File xfile = SPIFFS.open(initPath, "w");
         if (!xfile) {
                 Serial.println("Failed to open file as w");
@@ -219,12 +220,12 @@ void handleSave() {
 
 void handleAP() {
         if (debug) uart.println("ap req");
-        if (server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
+        if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
         StaticJsonBuffer<200> jsonBuffer;
         JsonObject& json = jsonBuffer.createObject();
-        json["ssid"] = server.arg("ssid");
-        json["key"] = server.arg("key");
-        json["ip"] = server.arg("ip");
+        json["ssid"] = webServer.arg("ssid");
+        json["key"] = webServer.arg("key");
+        json["ip"] = webServer.arg("ip");
         File xfile = SPIFFS.open(apPath, "w");
         if (!xfile) {
                 Serial.println("Failed to open file as w");
@@ -238,11 +239,11 @@ void handleAP() {
 
 void handleSta() {
         if (debug) uart.println("sta req");
-        if (server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
+        if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
         StaticJsonBuffer<200> jsonBuffer;
         JsonObject& json = jsonBuffer.createObject();
-        json["ssid"] = server.arg("ssid");
-        json["key"] = server.arg("key");
+        json["ssid"] = webServer.arg("ssid");
+        json["key"] = webServer.arg("key");
         File xfile = SPIFFS.open(staPath, "w");
         if (!xfile) {
                 Serial.println("Failed to open file as w");
@@ -256,12 +257,12 @@ void handleSta() {
 
 void handleNames() {
         if (debug) uart.println("names req");
-        if (server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
+        if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
         StaticJsonBuffer<200> jsonBuffer;
         JsonObject& json = jsonBuffer.createObject();
-        json["name"] = server.arg("name");
-        json["pubTopic"] = server.arg("pubTopic");
-        json["subTopic"] = server.arg("subTopic");
+        json["name"] = webServer.arg("name");
+        json["pubTopic"] = webServer.arg("pubTopic");
+        json["subTopic"] = webServer.arg("subTopic");
 
         File xfile = SPIFFS.open(namesPath, "w");
         if (!xfile) {
@@ -288,7 +289,7 @@ String formatBytes(size_t bytes) {
 }
 
 String getContentType(String filename) {
-        if (server.hasArg("download")) return "application/octet-stream";
+        if (webServer.hasArg("download")) return "application/octet-stream";
         else if (filename.endsWith(".htm")) return "text/html";
         else if (filename.endsWith(".html")) return "text/html";
         else if (filename.endsWith(".css")) return "text/css";
@@ -313,7 +314,7 @@ bool handleFileRead(String path) {
                 if (SPIFFS.exists(pathWithGz))
                         path += ".gz";
                 File file = SPIFFS.open(path, "r");
-                size_t sent = server.streamFile(file, contentType);
+                size_t sent = webServer.streamFile(file, contentType);
                 file.close();
                 return true;
         }
@@ -333,7 +334,7 @@ File openFile(String path) {
 
 void handleRoot() {
         if (!handleFileRead(indexPath)) if (debug) uart.println("Failed opening index.html");
-        //server.send(200, "text/html", "<h1>You are connected</h1>");
+        //webServer.send(200, "text/html", "<h1>You are connected</h1>");
 }
 
 
@@ -559,12 +560,17 @@ void setupProtocol() {
                         wsServer.begin();
                         wsServer.onEvent(wsServerEvent);
                         if(debug) {
-                                String tmp=""; tmp+=">dbg.wsServer("; tmp+=port; tmp+=")";
+                                String tmp=""; tmp+=">dbg.wsServer("; tmp+=81; tmp+=")";
                                 uart.println(tmp);
                         }
                 }
                 else if (rawTCP) {
-                        // not implemented
+                    rawServer.begin();
+                    rawServer.setNoDelay(true);
+                        if(debug) {
+                                String tmp=""; tmp+=">dbg.rawServer("; tmp+=23; tmp+=")";
+                                uart.println(tmp);
+                        }
                 }
         }
 
@@ -672,6 +678,47 @@ void wsServerEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length)
 
 }
 
+// This function was just adapted from WiFiTelnetToSerial example from ESP8266 Core for Arduino
+void rawServer_handleClients(){
+  uint8_t i;
+  //check if there are any new clients
+  if (rawServer.hasClient()){
+    for(i = 0; i < max_rawServer_clients; i++){
+      //find free/disconnected spot
+      if (!rawServer_clients[i] || !rawServer_clients[i].connected()){
+        if(rawServer_clients[i]) rawServer_clients[i].stop();
+        rawServer_clients[i] = rawServer.available();
+        //Serial1.print("New client: "); Serial1.print(i);
+        continue;
+      }
+    }
+    //no free/disconnected spot so reject
+    WiFiClient serverClient = rawServer.available();
+    serverClient.stop();
+  }
+  //check clients for data
+  for(i = 0; i < max_rawServer_clients; i++){
+    if (rawServer_clients[i] && rawServer_clients[i].connected()){
+      if(rawServer_clients[i].available()){
+        //get data from the telnet client and push it to the UART
+        while(rawServer_clients[i].available()) uart.write(rawServer_clients[i].read());
+      }
+    }
+  }
+  //check UART for data
+  if(uart.available()){
+    size_t len = uart.available();
+    uint8_t sbuf[len];
+    uart.readBytes(sbuf, len);
+    //push UART data to all connected telnet clients
+    for(i = 0; i < max_rawServer_clients; i++){
+      if (rawServer_clients[i] && rawServer_clients[i].connected()){
+        rawServer_clients[i].write(sbuf, len);
+        delay(1);
+      }
+    }
+  }
+}
 
 
 void rawTCPBridge() {
@@ -687,8 +734,8 @@ void rawTCPBridge() {
                 }
         }
         else {
-                // no server mode implemented
-        }
+             rawServer_handleClients();
+         }
 
 }
 
