@@ -20,3 +20,8 @@ Things to make it cooler:
 
 ###The Setup Page
 ![Setup Page](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/config_page.png)
+
+
+###The Wiring Diagram
+######Just in case you forgot:
+![ESP-01 Wiring](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/esp-01_wiring.png)
