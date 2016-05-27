@@ -28,4 +28,6 @@ The ESP will now work as an awesome Serial device, always when you `Serial.print
 
 ####Notes
 * Disconnect *DTR* and *RTS* before opening Arduino Serial Monitor
-* If the ESP is resetting, try flashing Sketch Data and/or Sketch again
+* If the ESP is resetting:
+  * Try flashing Sketch Data and/or Sketch again
+  * If you see "exception(28)" on Serial Monitor, try editing the json files (e.g. delete line endings) before flashing Sketch Data

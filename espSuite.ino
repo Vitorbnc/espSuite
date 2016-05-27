@@ -20,7 +20,7 @@
  */
 
 const int max_rawServer_clients = 2;
-const int defaultBaud=115200;
+const int defaultBaud=230400;
 bool fileDump = false;
 bool debug = false;
 //bool machineDebug = true;
