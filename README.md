@@ -15,7 +15,7 @@ Bulding from source will allow you to modify initial values, but if you experien
 ```
 esptool -p COM4 write_flash 0x0 espSuite_1MB.bin
 ```
-##### From-source
+##### From source
 * Upload the Sketch to your ESP8266
 * Upload Sketch Data using ESP8266 Sketch Data Upload Tool
 * Connect to your new AP (SSID is *things* by default) and go to 192.168.1.1 to see the Setup Page
