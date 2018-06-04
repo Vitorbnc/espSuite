@@ -6,7 +6,16 @@ This is great because we don't have to upload code again all the time we want to
 
 It uses Arduino Libraries [arduinoWebSockets](https://github.com/Links2004/arduinoWebSockets) for WebSockets, [pubsubclient](https://github.com/knolleary/pubsubclient) for MQTT and [ArduinoJson](https://github.com/bblanchon/ArduinoJson) for JSON Parsing.
 
-##### You just have to:
+#### Flashing:
+
+##### Pre-built:
+Bulding from source will allow you to modify initial values, but if you experience trouble, try flashing this binary extracted from a working device.
+* Install [esptool](https://github.com/espressif/esptool)
+* Run (replace COM4 with your port number):
+```
+esptool -p COM4 write_flash 0x0 espSuite_1MB.bin
+```
+##### From-source
 * Upload the Sketch to your ESP8266
 * Upload Sketch Data using ESP8266 Sketch Data Upload Tool
 * Connect to your new AP (SSID is *things* by default) and go to 192.168.1.1 to see the Setup Page
