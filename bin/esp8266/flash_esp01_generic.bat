@@ -1,0 +1,1 @@
+python -m esptool --chip esp8266 --port COM3 --baud 115200 --before default_reset --after hard_reset write_flash 0x0 .\esp01_generic\espSuite.ino.bin 

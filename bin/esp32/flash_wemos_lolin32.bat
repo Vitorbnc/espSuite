@@ -1,0 +1,1 @@
+.\1.0.4\esptool_py\2.6.1\esptool.exe --chip esp32 --port COM3 --baud 921600 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect 0xe000 ./1.0.4/partitions/boot_app0.bin 0x1000 ./1.0.4/bootloader/bootloader_dio_80m.bin 0x10000 ./wemos_lolin32/espSuite.ino.bin 0x8000 ./wemos_lolin32/espSuite.ino.partitions.bin 

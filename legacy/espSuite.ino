@@ -1,46 +1,39 @@
 
-#ifdef ESP32
-#include <WiFi.h>
-#include <WebServer.h>
-#else
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#define WebServer ESP8266WebServer
-#endif
 #include <WiFiClient.h>
+#include <ESP8266WebServer.h>
 #include <WebSocketsClient.h>
 #include <WebSocketsServer.h>
+#include <ArduinoJson.h>
 #include <PubSubClient.h>
-#include "constants.h"
-#include "mem.h"
+#include <FS.h>
 
 /* ------------------------------
-   Code by Vítor Barbosa (vitorbarbosanc@gmail.com)
-*/
+   Code by Vítor Barbosa (vitorbarbosanc@gmail.com), also using some parts of above libraries' examples.
 
-//Página de Configuração em Português --------------
-//#include "pages/index_br.html.h"
-//#define index_file index_br
-// ----------------
+   Don't forget to upload data alongside with this code to your ESP
 
-//English config page ----------------
-#include "pages/index_en.html.h"
-#define index_file index_en
-// ----------------
+   ESP8266 tested configs:
+   Blue model: 512K Flash, 64KB SPIFFS
+   Black model: 1M Flash, 64KB SPIFFS
 
+ */
+
+const int max_rawServer_clients = 2;
+const int defaultBaud=230400;
 bool fileDump = false;
-bool debug = true;
+bool debug = false;
 //bool machineDebug = true;
-String protocol="";
+char protocol[10];
 String mqttData="";
 String pubTopic = "";
 String subTopic = "";
 String currentTopic="";
 String name = "";
 // remote host and port (will be overwritten)
-String host = "255.255.255.255";
+char* host= "255.255.255.255";
 int port = 80;
-String mode="";
+char mode[10];
 String wifiMode = "";
 
 int serialBufferSize = 30;
@@ -51,9 +44,9 @@ char dataTrailer='\n';
 
 String serialData="";
 
-WebServer webServer(80);
+ESP8266WebServer webServer(80);
 WiFiServer rawServer(23);
-WiFiClient rawServer_clients[NET_MAX_CLIENTS];
+WiFiClient rawServer_clients[max_rawServer_clients];
 WiFiClient rawClient;
 PubSubClient mqttClient;
 WebSocketsServer wsServer = WebSocketsServer(81);
@@ -65,6 +58,8 @@ bool ws = false;
 bool rawTCP = false;
 bool mqtt = false;
 
+int tmpIP[4];
+
 const char* cfgSSID = "Config";
 const char* cfgKey = "12345678";
 IPAddress cfgIP(192, 168, 0, 1);
@@ -75,39 +70,47 @@ const int connectTimeout = 20000;
 
 bool configPage = false;
 
+// Choose between index_br, index_en for different langauge
+String indexPath = "/index_br.html";
+String savePath = "/save.html";
+String initPath = "/init.json";
+String apPath = "/ap.json";
+String staPath = "/sta.json";
+String protocolPath = "/protocol.json";
+String namesPath = "/names.json";
+
+
 // just so we can write the function down there
 void handleRoot();
 bool handleFileRead(String path);
 void wsClientEvent(WStype_t type, uint8_t * payload, size_t length);
 void wsServerEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 
-void printMem(){
-        uart.print("DEBUG_LEVEL:");
-        uart.println(Mem::readString(Addr::DEBUG_LEVEL,Len::DEBUG_LEVEL));
-        uart.print("DEVICE_NAME:");
-        uart.println(Mem::readString(Addr::DEVICE_NAME,Len::DEVICE_NAME));
-        uart.print("WIFI_MODE:");
-        uart.println(Mem::readString(Addr::WIFI_MODE,Len::WIFI_MODE));
-}
-
 void setup() {
-        uart.begin(BAUD);
-        Mem::begin();
-        delay(3000);
-        Mem::init();
+        delay(1500);
+        uart.begin(defaultBaud);
+        SPIFFS.begin();
+        {
+                Dir dir = SPIFFS.openDir("/");
+                while (dir.next()) {
+                        String fileName = dir.fileName();
+                        size_t fileSize = dir.fileSize();
+                        if (debug) uart.printf("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
+                }
+                if (debug) uart.printf("\n");
+        }
+        delay(500);
+        //readBtn();
         configPage=true;
         setupWiFi();
-        uart.println("Wifi ok");
-        
         loadProtocol();
-        uart.println("Protos");
-
 
 
         if (configPage) {
 
                 webServer.onNotFound([]() {
-                        webServer.send(404, "text/plain", "FileNotFound");
+                        if (!handleFileRead(webServer.uri()))
+                                webServer.send(404, "text/plain", "FileNotFound");
                 });
 
                 webServer.on("/", handleRoot);
@@ -132,11 +135,13 @@ void loop() {
         if(mqtt) mqttBridge();
         else if (ws) wsBridge();
         else if (rawTCP) rawTCPBridge();
+
+
+
 }
 
-IPAddress parseIP(String rawTxt) {
+void parseIP(String rawTxt) {
         int fields = 4;
-        int tmpIP[4];
         // parses the function arguments. E.g.:(100,10,-25)
         String tmp;
         int old_dotIndex = -1;
@@ -161,21 +166,29 @@ IPAddress parseIP(String rawTxt) {
                 }
         }
 
-        return IPAddress(tmpIP[0],tmpIP[1],tmpIP[2],tmpIP[3]);
-
 }
 
 
 void handleProtocol() {
         if (debug) uart.println("protocol req");
         if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
+        StaticJsonBuffer<200> jsonBuffer;
+        JsonObject& json = jsonBuffer.createObject();
+        json["mode"] = webServer.arg("mode");
+        json["protocol"] = webServer.arg("protocol");
+        json["host"] = webServer.arg("host");
+        json["port"] = webServer.arg("port").toInt();
 
-        Mem::writeString(webServer.arg("mode"),Addr::NET_MODE,Len::NET_MODE);
-        Mem::writeString(webServer.arg("protocol"),Addr::NET_PROTOCOL,Len::NET_PROTOCOL);
-        Mem::writeString(webServer.arg("host"),Addr::HOST_IP_STR,Len::HOST_IP_STR);
-        Mem::writeInt(webServer.arg("port").toInt(),Addr::HOST_PORT,Len::HOST_PORT);
-        Mem::commit();
 
+        File xfile = SPIFFS.open(protocolPath, "w");
+        if (!xfile) {
+                Serial.println("Failed to open file as w");
+                return;
+        }
+        if (fileDump) json.printTo(uart);
+        json.printTo(xfile);
+
+        xfile.close();
         handleRoot();
 }
 
@@ -183,54 +196,82 @@ void handleProtocol() {
 void handleInit() {
         if (debug) uart.println("init req");
         if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
-
-        Mem::writeString(webServer.arg("wifiMode"),Addr::WIFI_MODE,Len::WIFI_MODE);
-        Mem::writeString(webServer.arg("debug"),Addr::DEBUG_LEVEL,Len::DEBUG_LEVEL);
-        Mem::writeInt(webServer.arg("baud").toInt(),Addr::BAUD,Len::BAUD);
-        Mem::commit();
-
+        StaticJsonBuffer<200> jsonBuffer;
+        JsonObject& json = jsonBuffer.createObject();
+        json["wifiMode"] = webServer.arg("wifiMode");
+        json["debug"] = webServer.arg("debug");
+        json["baud"] = webServer.arg("baud").toInt();
+        File xfile = SPIFFS.open(initPath, "w");
+        if (!xfile) {
+                Serial.println("Failed to open file as w");
+                return;
+        }
+        if (fileDump) json.printTo(uart);
+        json.printTo(xfile);
+        xfile.close();
         handleRoot();
 }
 
 void handleSave() {
+
         if (debug) uart.println("saving req");
-        //if (!handleFileRead(savePath)) if (debug) uart.println("Failed opening save.html");
+        if (!handleFileRead(savePath)) if (debug) uart.println("Failed opening save.html");
 }
 
 void handleAP() {
         if (debug) uart.println("ap req");
         if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
-
-        Mem::writeString(webServer.arg("ssid"),Addr::AP_SSID,Len::AP_SSID);
-        Mem::writeString(webServer.arg("key"),Addr::AP_KEY,Len::AP_KEY);
-        IPAddress ip = parseIP(webServer.arg("ip"));
-        if (debug) uart.print("new device  ip:"), uart.println(ip.toString());
-        Mem::writeIP(ip,Addr::AP_IP,Len::AP_IP);
-        Mem::commit();
-
+        StaticJsonBuffer<200> jsonBuffer;
+        JsonObject& json = jsonBuffer.createObject();
+        json["ssid"] = webServer.arg("ssid");
+        json["key"] = webServer.arg("key");
+        json["ip"] = webServer.arg("ip");
+        File xfile = SPIFFS.open(apPath, "w");
+        if (!xfile) {
+                Serial.println("Failed to open file as w");
+                return;
+        }
+        if (fileDump) json.printTo(uart);
+        json.printTo(xfile);
+        xfile.close();
         handleRoot();
 }
 
 void handleSta() {
         if (debug) uart.println("sta req");
         if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
-
-        Mem::writeString(webServer.arg("ssid"),Addr::STA_SSID,Len::STA_SSID);
-        Mem::writeString(webServer.arg("key"),Addr::STA_KEY,Len::STA_KEY);
-        Mem::commit();
-        
+        StaticJsonBuffer<200> jsonBuffer;
+        JsonObject& json = jsonBuffer.createObject();
+        json["ssid"] = webServer.arg("ssid");
+        json["key"] = webServer.arg("key");
+        File xfile = SPIFFS.open(staPath, "w");
+        if (!xfile) {
+                Serial.println("Failed to open file as w");
+                return;
+        }
+        if (fileDump) json.printTo(uart);
+        json.printTo(xfile);
+        xfile.close();
         handleRoot();
 }
 
 void handleNames() {
         if (debug) uart.println("names req");
         if (webServer.args() == 0) return webServer.send(500, "text/plain", "BAD ARGS");
+        StaticJsonBuffer<200> jsonBuffer;
+        JsonObject& json = jsonBuffer.createObject();
+        json["name"] = webServer.arg("name");
+        json["pubTopic"] = webServer.arg("pubTopic");
+        json["subTopic"] = webServer.arg("subTopic");
 
-        Mem::writeString(webServer.arg("name"),Addr::DEVICE_NAME,Len::DEVICE_NAME);
-        Mem::writeString(webServer.arg("pubTopic"),Addr::PUB_TOPIC,Len::PUB_TOPIC);
-        Mem::writeString(webServer.arg("subTopic"),Addr::SUB_TOPIC,Len::SUB_TOPIC);
-        Mem::commit();
-
+        File xfile = SPIFFS.open(namesPath, "w");
+        if (!xfile) {
+                Serial.println("Failed to open file as w");
+                return;
+        }
+        if (fileDump) json.printTo(uart);
+        json.printTo(xfile);
+        xfile.close();
         handleRoot();
 }
 
@@ -264,23 +305,90 @@ String getContentType(String filename) {
         return "text/plain";
 }
 
-void handleRoot() {
-        //if (!handleFileRead(indexPath)) if (debug) uart.println("Failed opening index.html");
-        webServer.send(200, "text/html", index_file);
+bool handleFileRead(String path) {
+        if (debug) uart.println("handleFileRead: " + path);
+        if (path.endsWith("/")) path += "index.htm";
+        String contentType = getContentType(path);
+        String pathWithGz = path + ".gz";
+        if (SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)) {
+                if (SPIFFS.exists(pathWithGz))
+                        path += ".gz";
+                File file = SPIFFS.open(path, "r");
+                size_t sent = webServer.streamFile(file, contentType);
+                file.close();
+                return true;
+        }
+        return false;
 }
 
 
-void loadInit() {
-        String dbg = Mem::readString(Addr::DEBUG_LEVEL,Len::DEBUG_LEVEL);
-        if (strncmp(dbg.c_str(), "full", 4) == 0) fileDump = debug = true;
-        else if (strncmp(dbg.c_str(), "debug", 4) == 0) fileDump = false, debug = true;
-        else fileDump = debug = false;
-        uart.end();
-        delay(500);
-        uart.begin(Mem::readInt(Addr::BAUD));
-        delay(500);
+File openFile(String path) {
+        if (debug) uart.print("Opening: "); if (debug) uart.println(path);
+        File file = SPIFFS.open(path, "r");
+        if (!file) if (debug) uart.println("Failed");
+                else if (debug) uart.println("Success!");
+        return file;
 
-        wifiMode = Mem::readString(Addr::WIFI_MODE,Len::WIFI_MODE);
+}
+
+
+void handleRoot() {
+        if (!handleFileRead(indexPath)) if (debug) uart.println("Failed opening index.html");
+        //webServer.send(200, "text/html", "<h1>You are connected</h1>");
+}
+
+
+JsonObject& loadAndParse(String path) {
+        File file = openFile(path);
+
+        size_t size = file.size();
+        // Allocate a buffer to store contents of the file.
+        std::unique_ptr<char[]> buf(new char[size]); // use buf.get() instead of buf with this unique pointer
+        // char buf[size];
+        file.readBytes(buf.get(), size);
+        StaticJsonBuffer<210> jsonBuffer;
+        JsonObject& json = jsonBuffer.parseObject(buf.get());
+        //json.printTo(uart);
+        if (json.success()) {
+                if (debug) uart.print("Successfully parsed "); if (debug) uart.println(path);
+        } else {
+                if (debug) uart.print("Failed to parse "); if (debug) uart.println(path);
+        }
+        file.close();
+        return json;
+
+}
+
+void loadInit() {
+        delay(500);
+        JsonObject& json = loadAndParse(initPath);
+        const char * dbg = json["debug"];
+        if (strncmp(dbg, "full", 4) == 0) {
+                fileDump = true;
+                debug = true;
+        }
+        else if (strncmp(dbg, "debug", 4) == 0) {
+                fileDump = false;
+                debug = true;
+        }
+        else {
+                fileDump = false;
+                debug = false;
+        }
+
+        int baudRate = json["baud"];
+        uart.end();
+        delay(100);
+        uart.begin(baudRate);
+        delay(100);
+
+        if (fileDump)
+                json.printTo(uart);
+        if (debug) uart.println();
+
+        const char *tmp = json["wifiMode"];
+        wifiMode += tmp;
+        if (debug) uart.println(wifiMode);
 }
 
 
@@ -289,25 +397,30 @@ void apMode() {
         WiFi.mode(WIFI_AP);
         if (debug) uart.println("Setting up in AP Mode");
         isAP = true;
-        String ssid = Mem::readString(Addr::AP_SSID,Len::AP_SSID);
-        String key = Mem::readString(Addr::AP_KEY,Len::AP_KEY);
+        JsonObject&  json = loadAndParse(apPath);
+        if (fileDump)  { json.printTo(uart); uart.println(); }
+        const char *ssid = json["ssid"];
+        const char *key = json["key"];
         int keyLength = sizeof(key)/sizeof(char);
-        IPAddress ip = Mem::readIP(Addr::AP_IP,Len::AP_IP);
+        const char *rawIP = json["ip"];
+        String strIP = rawIP;
+        parseIP(strIP);
+        IPAddress ip(tmpIP[0], tmpIP[1], tmpIP[2], tmpIP[3]);
         bool openAP = false;
-        if (strncmp(key.c_str(), "", 1) == 0|| keyLength<8) openAP = true;
+        if (strncmp(key, "", 1) == 0|| keyLength<8) openAP = true;
         //WiFi.softAPConfig(local_IP, gateway, subnet_mask)
         WiFi.softAPConfig(ip, ip, IPAddress(255, 255, 255, 0));
         if (openAP) {
-                WiFi.softAP(ssid.c_str());
+                WiFi.softAP(ssid);
                 if (debug) uart.println(">dbg.WiFiMode(Open AP)");
         }
         else {
-                WiFi.softAP(ssid.c_str(), key.c_str());
+                WiFi.softAP(ssid, key);
                 if (debug) uart.println(">dbg.WiFiMode(Safe AP)");
         }
 
         if (debug) {
-                String tmp=""; tmp+=">dbg.IP("; tmp+=ip.toString(); tmp+=")";
+                String tmp=""; tmp+=">dbg.IP("; tmp+=ip; tmp+=")";
                 uart.println(tmp);
         }
 
@@ -317,12 +430,13 @@ void staMode() {
         WiFi.mode(WIFI_STA);
         if (debug) uart.println(">dbg.WiFiMode(sta)");
         isAP = false;
-        //if (fileDump)   { json.printTo(uart); uart.println(); }
-        String ssid = Mem::readString(Addr::STA_SSID,Len::STA_SSID);
-        String key = Mem::readString(Addr::STA_SSID,Len::STA_SSID);
+        JsonObject&  json = loadAndParse(staPath);
+        if (fileDump)   { json.printTo(uart); uart.println(); }
+        const char *ssid = json["ssid"];
+        const char *key = json["key"];
         if (debug) uart.println(ssid);
         //if(debug) uart.println(key);
-        WiFi.begin(ssid.c_str(), key.c_str());
+        WiFi.begin(ssid, key);
 
         for(int tryTime=0; tryTime<connectTimeout; tryTime+=500) {
                 if(WiFi.status() != WL_CONNECTED) {
@@ -363,7 +477,7 @@ void setupWiFi() {
 }
 
 void rawClientConnect() {
-        if (!rawClient.connect(host.c_str(), port)) {
+        if (!rawClient.connect(host, port)) {
                 if (debug) uart.println("connection failed");
         }
         else if (debug) uart.println("connected!");
@@ -406,10 +520,12 @@ void mqttConnect() {
 
 void setupProtocol() {
         if (clientMode) {
-                if(isAP && mqtt){ 
-                        mqtt = false, ws = true;
-                        if(debug) uart.println("MQTT and AP mode won't work well, changing to WS");
-        
+                if(isAP) {
+                        if(mqtt) {
+                                mqtt=false;
+                                if(debug) uart.println("MQTT and AP mode won't work well, changing to WS");
+                                ws=true;
+                        }
                 }
                 if (ws) {
                         wsClient.begin(host, port);
@@ -430,7 +546,7 @@ void setupProtocol() {
                 else if (mqtt) {
                         if (debug) uart.println(">dbg.protocol(MQTT)");
                         mqttClient.setClient(rawClient);
-                        mqttClient.setServer(host.c_str(),port);
+                        mqttClient.setServer(host,port);
                         mqttClient.setCallback(callback);
                         mqttConnect();
                 }
@@ -461,23 +577,45 @@ void setupProtocol() {
 }
 
 void loadProtocol() {
-        uart.println("loading protocols");
-        protocol+= Mem::readString(Addr::NET_PROTOCOL,Len::NET_PROTOCOL);
-        mode+= Mem::readString(Addr::NET_MODE,Len::NET_MODE);
-        host+= Mem::readString(Addr::HOST_IP_STR,Len::HOST_IP_STR);
-        port = Mem::readInt(Addr::HOST_PORT);
-        clientMode = !(strncmp(mode.c_str(), "server", 4) == 0);
-        if (strncmp(protocol.c_str(), "raw", 2) == 0)           ws = false, rawTCP = true, mqtt = false;
-        else if (strncmp(protocol.c_str(), "ws", 2) == 0)       ws = true, rawTCP = false, mqtt = false;
-        else if (strncmp(protocol.c_str(),"mqtt", 2)==0)        ws = false, rawTCP = false,  mqtt = true;
-        
+
+        JsonObject&  json = loadAndParse(protocolPath);
+        //strcpy(dest, src)
+        strcpy(protocol, json["protocol"]);
+        strcpy(mode, json["mode"]);
+        const char *rawIP = json["host"];
+        strcpy(host, rawIP);
+        port = json["port"];
+        if (strncmp(mode, "server", 4) == 0) {
+                clientMode = false;
+        }
+        else clientMode = true;
+        if (strncmp(protocol, "raw", 2) == 0) {
+                ws = false;
+                rawTCP = true;
+                mqtt=false;
+        }
+        else if (strncmp(protocol, "ws", 2) == 0) {
+                ws = true;
+                rawTCP = false;
+                mqtt=false;
+        }
+        else if (strncmp(protocol,"mqtt", 2)==0) {
+                ws=false;
+                rawTCP=false;
+                mqtt=true;
+        }
         setupProtocol();
+
 }
 
 void loadNames() {
-        subTopic += Mem::readString(Addr::SUB_TOPIC,Len::SUB_TOPIC);
-        pubTopic += Mem::readString(Addr::PUB_TOPIC,Len::PUB_TOPIC);
-        name += Mem::readString(Addr::DEVICE_NAME,Len::DEVICE_NAME);
+        JsonObject&  json = loadAndParse(namesPath);
+        const char* inTopic = json["subTopic"];
+        subTopic += inTopic;
+        const char* outTopic = json["pubTopic"];
+        pubTopic += outTopic;
+        const char* rawName = json["name"];
+        name += rawName;
         if(fileDump) {
                 uart.print("Subscription topic:"); uart.println(subTopic);
                 uart.print("Publishing topic:"); uart.println(pubTopic);
@@ -545,7 +683,7 @@ void rawServer_handleClients(){
   uint8_t i;
   //check if there are any new clients
   if (rawServer.hasClient()){
-    for(i = 0; i < NET_MAX_CLIENTS; i++){
+    for(i = 0; i < max_rawServer_clients; i++){
       //find free/disconnected spot
       if (!rawServer_clients[i] || !rawServer_clients[i].connected()){
         if(rawServer_clients[i]) rawServer_clients[i].stop();
@@ -559,7 +697,7 @@ void rawServer_handleClients(){
     serverClient.stop();
   }
   //check clients for data
-  for(i = 0; i < NET_MAX_CLIENTS; i++){
+  for(i = 0; i < max_rawServer_clients; i++){
     if (rawServer_clients[i] && rawServer_clients[i].connected()){
       if(rawServer_clients[i].available()){
         //get data from the telnet client and push it to the UART
@@ -573,7 +711,7 @@ void rawServer_handleClients(){
     uint8_t sbuf[len];
     uart.readBytes(sbuf, len);
     //push UART data to all connected telnet clients
-    for(i = 0; i < NET_MAX_CLIENTS; i++){
+    for(i = 0; i < max_rawServer_clients; i++){
       if (rawServer_clients[i] && rawServer_clients[i].connected()){
         rawServer_clients[i].write(sbuf, len);
         delay(1);
