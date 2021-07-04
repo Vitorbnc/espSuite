@@ -41,7 +41,7 @@ The ESP will work as a Serial device, always when you `Serial.print("something")
 
 ### Things to make it better:
 * Choose another language (currently, EN-US and PT-BR available) by opening `espSuite.ino` and replacing `index_en` by `index_br`
-* Edit `/pages/index_xx.html` with the name of your thing or robot. E.g.: **Wall-E Setup** and generate a new `index_xx.html.h` with the provided `page_converter` tool by running it from the `pages` folder:
+* Edit `/pages/index_xx.html` with your custom html, then generate a new `index_xx.html.h` with the provided `page_converter` tool by running it from the `pages` folder:
 ```
 ..\tools\page_converter.exe .\index_xx.html
 ```
