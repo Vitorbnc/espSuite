@@ -58,6 +58,3 @@ The ESP will work as a Serial device, always when you `Serial.print("something")
 #### Notes
 * Disconnect *DTR* and *RTS* before opening Arduino Serial Monitor
 * Make sure to use *Newline*('\n') as line ending char, or change `dataTrailer` in the sketch to use something else.
-* If the ESP is resetting:
-  * Try flashing Sketch Data and/or Sketch again
-  * If you see "exception(28)" on Serial Monitor, try editing the json files (e.g. delete line endings) before flashing Sketch Data
