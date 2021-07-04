@@ -15,9 +15,9 @@ Now we don't have to upload code again only to switch to AP Mode or change the p
 Bulding from source is recommended for customizing the default options. 
 
 Prebuilt binaries available:
-* Wemos Lolin32
+* Wemos Lolin32 
   * Go to `./bin/esp32` and run `.\flash_wemos_lolin32.bat` 
-* Generic ESP-01 module 
+* Generic ESP-01 module (not tested yet)
   * Install `python 3` and [esptool](https://github.com/espressif/esptool) (with `pip`)
   * Go to `./bin/esp8266` and run `flash_esp01_generic.bat`
 > Edit the `.bat` files to replace COM3 with your port number if it fails to find the device. 
@@ -48,12 +48,12 @@ The ESP will work as a Serial device, always when you `Serial.print("something")
 > Note: a linux binary for the page converter will come soon, but you should be able to build it with gcc in no time.
 
 ### The Setup Page
-![Setup Page](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/config_page.png)
+![Setup Page](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/media/config_page.png)
 
 
 ### The Wiring Diagram
 ###### Just in case you forgot:
-![ESP-01 Wiring](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/esp-01_wiring.png)
+![ESP-01 Wiring](https://raw.githubusercontent.com/Vitorbnc/espSuite/master/media/esp-01_wiring.png)
 
 #### Notes
 * Disconnect *DTR* and *RTS* before opening Arduino Serial Monitor
