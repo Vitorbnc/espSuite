@@ -16,7 +16,7 @@ Bulding from source is recommended for customizing the default options.
 
 Prebuilt binaries available:
 * Wemos Lolin32 
-  * Go to `./bin/esp32` and run `.\flash_wemos_lolin32.bat` 
+  * Go to `./bin/esp32` and run `flash_wemos_lolin32.bat` 
 * Generic ESP-01 module (not tested yet)
   * Install `python 3` and [esptool](https://github.com/espressif/esptool) (with `pip`)
   * Go to `./bin/esp8266` and run `flash_esp01_generic.bat`
@@ -40,7 +40,7 @@ Steps:
 The ESP will work as a Serial device, always when you `Serial.print("something")`, *something* will be sent using the protocol you've chosen. When you send *something* to its IP address and port (don't forget the '\n' in the end), it will be printed to Arduino too.
 
 ### Things to make it better:
-* Choose another language (currently, EN-US and PT-BR available) by opening `espSuite.ino` and replacing `index_en` for `index_br`
+* Choose another language (currently, EN-US and PT-BR available) by opening `espSuite.ino` and replacing `index_en` by `index_br`
 * Edit `/pages/index_xx.html` with the name of your thing or robot. E.g.: **Wall-E Setup** and generate a new `index_xx.html.h` with the provided `page_converter` tool by running it from the `pages` folder:
 ```
 ..\tools\page_converter.exe .\index_xx.html
