@@ -4,7 +4,7 @@
 ---
 Now we don't have to upload code again only to switch to AP Mode or change the password. Just open the config page and you're all set.
 
-**New  version: ESP32 support + does not require SPIFFs or JSON, just EEPROM emulation. This greatly improves stability.**
+**New  version: ESP32 support + EEPROM emulation for saving default data. This greatly improves stability.**
 
 **Previous version moved to the legacy folder.**
 
@@ -33,9 +33,10 @@ Tested with:
 * [Arduino core for ESP8266](https://github.com/esp8266/Arduino) 3.0.1 (build succeeded, but not tested in actual device )
 
 Steps:
-* **Optional**: open `constants.h` to view or edit default settings
 * Upload the Sketch to ESP8266/ESP32
 * Connect to its AP (SSID is *things* by default) and go to 192.168.1.1 to see the Setup Page
+* **Optional**: open `constants.h` to view or edit default settings (change `INIT_CODE` to some arbitrary number of your choice after every new change)
+
 
 The ESP will work as a Serial device, always when you `Serial.print("something")`, *something* will be sent using the protocol you've chosen. When you send *something* to its IP address and port (don't forget the '\n' in the end), it will be printed to Arduino too.
 
