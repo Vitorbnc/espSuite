@@ -204,7 +204,8 @@ void handleAP() {
         Mem::writeString(webServer.arg("ssid"),Addr::AP_SSID,Len::AP_SSID);
         Mem::writeString(webServer.arg("key"),Addr::AP_KEY,Len::AP_KEY);
         IPAddress ip = parseIP(webServer.arg("ip"));
-        if (debug) uart.print("new device  ip:"), uart.println(ip.toString());
+        if (debug) uart.print("new device ip:"), uart.println(ip.toString());
+
         Mem::writeIP(ip,Addr::AP_IP,Len::AP_IP);
         Mem::commit();
 

@@ -47,14 +47,18 @@ IPAddress readIP(int addr){
     return IPAddress(EEPROMr.read(addr),EEPROMr.read(addr+1),EEPROMr.read(addr+2),EEPROMr.read(addr+3));
 }
 void writeIP(uint32_t ip,int addr){
-    for(int i = 0;i<4;i++) EEPROMr.write(addr+i,(ip>>8*i)&0xff); //MSB first
+    for(int i = 0;i<=3;i++) EEPROMr.write(addr+i,(ip>>8*(3-i))&0xff); //MSB first
+}
+
+void writeIP(IPAddress ip,int addr){
+    for(int i = 0;i<=3;i++) EEPROMr.write(addr+i,ip[i]); //MSB first
 }
 
 int readInt(int addr){
     return(EEPROMr.read(addr)<<24 | EEPROMr.read(addr+1)<<16 | EEPROMr.read(addr+2)<< 8| EEPROMr.read(addr+3)); //MSB first
 }
 void writeInt(int num,int addr){
-    for(int i = 0;i<4;i++) EEPROMr.write(addr+i,(num>>24-8*i)&0xff); //MSB first
+    for(int i = 0;i<=3;i++) EEPROMr.write(addr+i,(num>>8*(3-i))&0xff); //MSB first
 }
 int readInitCode(){
     return readInt(INIT_ADDR);
@@ -75,6 +79,10 @@ inline int readInt(Addr addr, Len len){return readInt((int) addr);}
 inline void writeIP(uint32_t ip,int addr, int len){writeIP(ip,addr);}
 inline void writeIP(uint32_t ip,Addr addr){writeIP(ip,(int) addr);}
 inline void writeIP(uint32_t ip,Addr addr, Len len){writeIP(ip,(int) addr);}
+
+inline void writeIP(IPAddress ip,int addr, int len){writeIP(ip,addr);}
+inline void writeIP(IPAddress ip,Addr addr){writeIP(ip,(int) addr);}
+inline void writeIP(IPAddress ip,Addr addr, Len len){writeIP(ip,(int) addr);}
 
 inline void writeInt(int num, int addr, int len){writeInt(num,addr);}
 inline void writeInt(int num, Addr addr) {writeInt(num, (int) addr);}
