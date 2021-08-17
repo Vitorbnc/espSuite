@@ -3,7 +3,7 @@
 //#include "stdint.h"
 
 // Change init code to force EEPROM update! -------------------------------------------------------------------
-#define INIT_CODE 998 //Arbitrary code to check if eeprom was initialized, up to 32bit size
+#define INIT_CODE 991 //Arbitrary code to check if eeprom was initialized, up to 32bit size
 // ------------------------------------------------------------------------------------------------------------
 
 #define EEPROM_SIZE 4096
