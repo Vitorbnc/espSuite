@@ -320,7 +320,7 @@ void staMode() {
         isAP = false;
         //if (fileDump)   { json.printTo(uart); uart.println(); }
         String ssid = Mem::readString(Addr::STA_SSID,Len::STA_SSID);
-        String key = Mem::readString(Addr::STA_SSID,Len::STA_SSID);
+        String key = Mem::readString(Addr::STA_KEY,Len::STA_KEY);
         if (debug) uart.println(ssid);
         //if(debug) uart.println(key);
         WiFi.begin(ssid.c_str(), key.c_str());
